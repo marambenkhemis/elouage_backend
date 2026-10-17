@@ -1,4 +1,4 @@
 package com.elouage.reservation;
 
-public record ReservationRequest() {
+public record ReservationRequest(Long trajetId, Long passagerId, int numeroPlace) {
 }
