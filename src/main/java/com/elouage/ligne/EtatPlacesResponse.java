@@ -1,4 +1,7 @@
 package com.elouage.ligne;
 
-public record EtatPlacesResponse() {
+import java.util.List;
+
+public record EtatPlacesResponse(Long trajetId, int placesLibres, List<PlaceEtat> places) {
+    public record PlaceEtat(int numero, boolean libre) { }
 }
