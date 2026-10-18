@@ -18,7 +18,6 @@ public class ReservationController {
     // US13  POST http://localhost:8081/api/reservations
     // {"trajetId": 1, "passagerId": 3, "numeroPlace": 3}
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
     public ReservationResponse reserver(@RequestBody ReservationRequest request) {
         return reservationService.reserver(request);
     }
