@@ -29,7 +29,7 @@ public class ReservationService {
 
     private Reservation getReservation(Long id) {
         return reservationRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation introuvable : " + id));
+                .orElseThrow(() -> new RuntimeException("Reservation introuvable : " + id));
     }
 
     // US13 : reserver une place precise.
@@ -37,27 +37,27 @@ public class ReservationService {
     @Transactional
     public ReservationResponse reserver(ReservationRequest request) {
         if (request.trajetId() == null || request.passagerId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "trajetId et passagerId sont obligatoires.");
+            throw new RuntimeException("trajetId et passagerId sont obligatoires.");
         }
         if (request.numeroPlace() < 1 || request.numeroPlace() > Trajet.NB_PLACES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            throw new RuntimeException(
                     "Le numero de place doit etre compris entre 1 et " + Trajet.NB_PLACES + ".");
         }
         Passager passager = utilisateurService.getPassager(request.passagerId());
         Trajet trajet = trajetRepository.findByIdForUpdate(request.trajetId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                .orElseThrow(() -> new RuntimeException(
                         "Trajet introuvable : " + request.trajetId()));
 
         if (trajet.getDate().isBefore(LocalDate.now())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ce trajet est deja passe.");
+            throw new RuntimeException("Ce trajet est deja passe.");
         }
         if (existeReservation(request.numeroPlace(), trajet.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new RuntimeException(
                     "La place " + request.numeroPlace() + " vient d'etre prise, choisissez une autre place.");
         }
         if (reservationRepository.existsByTrajetIdAndPassagerIdAndStatutNot(
                 trajet.getId(), passager.getId(), StatutReservation.ANNULEE)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Vous avez deja une reservation sur ce trajet.");
+            throw new RuntimeException("Vous avez deja une reservation sur ce trajet.");
         }
         Reservation reservation = reservationRepository.save(new Reservation(passager, trajet, request.numeroPlace()));
         return ReservationResponse.from(reservation);
@@ -82,10 +82,10 @@ public class ReservationService {
         Reservation reservation = getReservation(reservationId);
         verifierPassager(reservation, passagerId);
         if (reservation.getStatut() == StatutReservation.ANNULEE) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cette reservation est deja annulee.");
+            throw new RuntimeException("Cette reservation est deja annulee.");
         }
         if (reservation.getStatut() == StatutReservation.EMBARQUEE) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Impossible d'annuler : le passager est deja embarque.");
+            throw new RuntimeException("Impossible d'annuler : le passager est deja embarque.");
         }
         reservation.setStatut(StatutReservation.ANNULEE);
         return ReservationResponse.from(reservation);
@@ -97,7 +97,7 @@ public class ReservationService {
         Reservation reservation = getReservation(reservationId);
         verifierPassager(reservation, passagerId);
         if (reservation.getStatut() != StatutReservation.CONFIRMEE) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new RuntimeException(
                     "Seule une reservation confirmee peut etre marquee presente (statut : " + reservation.getStatut() + ").");
         }
         reservation.setStatut(StatutReservation.PRESENTE);
@@ -118,11 +118,11 @@ public class ReservationService {
     public List<ReservationResponse> validerChecklist(ChecklistRequest request) {
         if (request.trajetId() == null || request.louagisteId() == null
                 || request.reservationIds() == null || request.reservationIds().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            throw new RuntimeException(
                     "trajetId, louagisteId et au moins une reservation sont obligatoires.");
         }
         Trajet trajet = trajetRepository.findById(request.trajetId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                .orElseThrow(() -> new RuntimeException(
                         "Trajet introuvable : " + request.trajetId()));
         verifierLouagiste(trajet, request.louagisteId());
 
@@ -130,7 +130,7 @@ public class ReservationService {
         for (Long id : request.reservationIds()) {
             Reservation reservation = getReservation(id);
             if (!reservation.getTrajet().getId().equals(trajet.getId())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                throw new RuntimeException(
                         "La reservation " + id + " n'appartient pas au trajet " + trajet.getId() + ".");
             }
             embarquer(reservation);
@@ -141,7 +141,7 @@ public class ReservationService {
 
     private void embarquer(Reservation reservation) {
         if (reservation.getStatut() != StatutReservation.PRESENTE) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new RuntimeException(
                     "Le passager n'a pas signale sa presence (statut : " + reservation.getStatut() + ").");
         }
         reservation.setStatut(StatutReservation.EMBARQUEE);
@@ -149,13 +149,13 @@ public class ReservationService {
 
     private void verifierPassager(Reservation reservation, Long passagerId) {
         if (!reservation.getPassager().getId().equals(passagerId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cette reservation n'appartient pas a ce passager.");
+            throw new RuntimeException("Cette reservation n'appartient pas a ce passager.");
         }
     }
 
     private void verifierLouagiste(Trajet trajet, Long louagisteId) {
         if (!trajet.getLouagiste().getId().equals(louagisteId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ce trajet n'appartient pas a ce louagiste.");
+            throw new RuntimeException("Ce trajet n'appartient pas a ce louagiste.");
         }
     }
 }

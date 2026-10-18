@@ -31,7 +31,7 @@ public class TrajetService {
 
     public Trajet getTrajet(Long trajetId) {
         return trajetRepository.findById(trajetId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trajet introuvable : " + trajetId));
+                .orElseThrow(() -> new RuntimeException("Trajet introuvable : " + trajetId));
     }
 
     @Transactional(readOnly = true)
@@ -67,20 +67,20 @@ public class TrajetService {
     @Transactional
     public CheckInResponse faireCheckIn(Long trajetId, Long louagisteId) {
         if (louagisteId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "louagisteId est obligatoire.");
+            throw new RuntimeException("louagisteId est obligatoire.");
         }
         Long ligneId = trajetRepository.findLigneIdById(trajetId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trajet introuvable : " + trajetId));
+                .orElseThrow(() -> new RuntimeException("Trajet introuvable : " + trajetId));
         LocalDate jour = trajetRepository.findDateById(trajetId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trajet introuvable : " + trajetId));
+                .orElseThrow(() -> new RuntimeException("Trajet introuvable : " + trajetId));
 
         List<Trajet> duJour = trajetRepository.findAllByLigneAndDateForUpdate(ligneId, jour);
         Trajet trajet = duJour.stream().filter(t -> t.getId().equals(trajetId)).findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trajet introuvable : " + trajetId));
+                .orElseThrow(() -> new RuntimeException("Trajet introuvable : " + trajetId));
 
         verifierLouagiste(trajet, louagisteId);
         if (trajet.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new RuntimeException(
                     "Le check-in a deja ete effectue (rang " + trajet.getRang() + ").");
         }
 
@@ -108,7 +108,7 @@ public class TrajetService {
 
     private void verifierLouagiste(Trajet trajet, Long louagisteId) {
         if (!trajet.getLouagiste().getId().equals(louagisteId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ce trajet n'appartient pas a ce louagiste.");
+            throw new RuntimeException("Ce trajet n'appartient pas a ce louagiste.");
         }
     }
 }

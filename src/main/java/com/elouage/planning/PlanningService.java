@@ -47,30 +47,28 @@ public class PlanningService {
     public PlanningResponse remplirPlan(PlanningRequest request) {
         if (request.louagisteId() == null || request.dateDebutSemaine() == null
                 || request.lignesParJour() == null || request.lignesParJour().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "louagisteId, dateDebutSemaine et au moins une ligne sont obligatoires.");
+            throw new RuntimeException("louagisteId, dateDebutSemaine et au moins une ligne sont obligatoires.");
         }
         Louagiste louagiste = utilisateurService.getLouagiste(request.louagisteId());
         LocalDate debut = request.dateDebutSemaine().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
 
         if (planningRepository.existsByLouagisteIdAndDateDebutSemaine(louagiste.getId(), debut)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Le planning de la semaine du " + debut
+            throw new RuntimeException("Le planning de la semaine du " + debut
                     + " existe deja. Utilisez le changement de ligne pour le modifier.");
         }
         PlanningHebdomadaire planning = new PlanningHebdomadaire(louagiste, debut, debut.plusDays(DELAI_CLOTURE_JOURS));
         if (LocalDate.now().isAfter(planning.getDateCloture())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Le planning de la semaine du " + debut + " est cloture (depuis le " + planning.getDateCloture() + ").");
+            throw new RuntimeException("Le planning de la semaine du " + debut
+                    + " est cloture (depuis le " + planning.getDateCloture() + ").");
         }
 
         Map<LocalDate, Ligne> choix = new TreeMap<>();
         for (Map.Entry<LocalDate, Long> e : request.lignesParJour().entrySet()) {
             if (e.getValue() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Aucune ligne choisie pour le " + e.getKey() + ".");
+                throw new RuntimeException("Aucune ligne choisie pour le " + e.getKey() + ".");
             }
             Ligne ligne = ligneRepository.findById(e.getValue())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                            "Ligne introuvable : " + e.getValue()));
+                    .orElseThrow(() -> new RuntimeException("Ligne introuvable : " + e.getValue()));
             choix.put(e.getKey(), ligne);
         }
 
@@ -85,15 +83,14 @@ public class PlanningService {
             LocalDate jour = e.getKey();
             Ligne ligne = e.getValue();
             if (jour.isBefore(planning.getDateDebutSemaine()) || jour.isAfter(planning.getDateDebutSemaine().plusDays(6))) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Le jour " + jour + " n'appartient pas a la semaine du " + planning.getDateDebutSemaine() + ".");
+                throw new RuntimeException("Le jour " + jour + " n'appartient pas a la semaine du "
+                        + planning.getDateDebutSemaine() + ".");
             }
             if (jour.isBefore(LocalDate.now())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le jour " + jour + " est deja passe.");
+                throw new RuntimeException("Le jour " + jour + " est deja passe.");
             }
             if (!ligneAutorisee(planning.getLouagiste(), ligne)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "Ligne " + ligne.getId() + " non autorisee pour ce louagiste (jour " + jour + ").");
+                throw new RuntimeException("Ligne " + ligne.getId() + " non autorisee pour ce louagiste (jour " + jour + ").");
             }
             trajets.add(new Trajet(planning, planning.getLouagiste(), ligne, jour));
         }
@@ -104,7 +101,7 @@ public class PlanningService {
     public PlanningResponse getPlanning(Long louagisteId, LocalDate semaine) {
         LocalDate debut = semaine.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         PlanningHebdomadaire planning = planningRepository.findByLouagisteIdAndDateDebutSemaine(louagisteId, debut)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                .orElseThrow(() -> new RuntimeException(
                         "Aucun planning pour la semaine du " + debut + "."));
         return PlanningResponse.from(planning);
     }
@@ -113,9 +110,9 @@ public class PlanningService {
     @Transactional(readOnly = true)
     public TrajetResponse getTrajet(Long planningId, LocalDate jour) {
         PlanningHebdomadaire planning = planningRepository.findById(planningId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Planning introuvable : " + planningId));
+                .orElseThrow(() -> new RuntimeException("Planning introuvable : " + planningId));
         Trajet trajet = planning.getTrajets().stream().filter(t -> t.getDate().equals(jour)).findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                .orElseThrow(() -> new RuntimeException(
                         "Aucun trajet le " + jour + " dans ce planning."));
         int placesLibres = Trajet.NB_PLACES - reservationRepository
                 .findNumerosOccupes(trajet.getId(), StatutReservation.ANNULEE).size();
@@ -126,32 +123,32 @@ public class PlanningService {
     @Transactional
     public TrajetResponse changerLigne(Long trajetId, ChangerLigneRequest request) {
         if (request.louagisteId() == null || request.ligneId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "louagisteId et ligneId sont obligatoires.");
+            throw new RuntimeException("louagisteId et ligneId sont obligatoires.");
         }
         Trajet trajet = trajetRepository.findByIdForUpdate(trajetId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trajet introuvable : " + trajetId));
         if (!trajet.getLouagiste().getId().equals(request.louagisteId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ce trajet n'appartient pas a ce louagiste.");
+            throw new RuntimeException("Ce trajet n'appartient pas a ce louagiste.");
         }
         if (LocalDate.now().isAfter(trajet.getPlanning().getDateCloture())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new RuntimeException(
                     "Le planning est cloture : le changement de ligne n'est plus possible.");
         }
         if (trajet.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Impossible de changer de ligne apres le check-in.");
+            throw new RuntimeException("Impossible de changer de ligne apres le check-in.");
         }
         if (reservationRepository.existsByTrajetIdAndStatutNot(trajetId, StatutReservation.ANNULEE)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new RuntimeException(
                     "Impossible de changer de ligne : des passagers ont deja reserve ce trajet.");
         }
         Ligne ligne = ligneRepository.findById(request.ligneId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                .orElseThrow(() -> new RuntimeException(
                         "Ligne introuvable : " + request.ligneId()));
         if (ligne.getId().equals(trajet.getLigne().getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le trajet est deja sur cette ligne.");
+            throw new RuntimeException("Le trajet est deja sur cette ligne.");
         }
         if (!ligneAutorisee(trajet.getLouagiste(), ligne)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Le louagiste n'est pas autorise sur cette ligne.");
+            throw new RuntimeException("Le louagiste n'est pas autorise sur cette ligne.");
         }
         trajet.setLigne(ligne);
         return TrajetResponse.from(trajet, Trajet.NB_PLACES);
