@@ -47,7 +47,8 @@ public class LigneService {
             for (Trajet t : trajetService.getTrajets(ligne.getId(), date)) {
                 resultats.add(new TrajetResultatResponse(
                         t.getId(), t.getDate(),
-                        ligne.getStationDepart().getVille(), ligne.getVilleDestination(),
+                        ligne.getStationDepart().getVille(), ligne.getStationDepart().getNom(),
+                        ligne.getVilleDestination(), ligne.getStationArrivee().getNom(),
                         ligne.getPrix(),
                         t.getLouagiste().getNom(), t.getLouagiste().getMatricule(),
                         trajetService.getPlacesLibres(t.getId()).size()));
