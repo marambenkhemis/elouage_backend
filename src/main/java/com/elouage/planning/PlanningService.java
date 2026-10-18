@@ -30,7 +30,7 @@ public class PlanningService {
     private final ReservationRepository reservationRepository;
     private final LigneRepository ligneRepository;
     private final UtilisateurService utilisateurService;
-    private final int delaiClotureJours;
+    private static final int DELAI_CLOTURE_JOURS = 0;
 
     public PlanningService(PlanningRepository planningRepository, TrajetRepository trajetRepository,
                            ReservationRepository reservationRepository, LigneRepository ligneRepository,
@@ -40,7 +40,6 @@ public class PlanningService {
         this.reservationRepository = reservationRepository;
         this.ligneRepository = ligneRepository;
         this.utilisateurService = utilisateurService;
-        this.delaiClotureJours = 0;
     }
 
     // US10 : remplir le planning de la semaine. La presence est confirmee tout de suite, sans validation de l'admin.
@@ -58,7 +57,7 @@ public class PlanningService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Le planning de la semaine du " + debut
                     + " existe deja. Utilisez le changement de ligne pour le modifier.");
         }
-        PlanningHebdomadaire planning = new PlanningHebdomadaire(louagiste, debut, debut.plusDays(delaiClotureJours));
+        PlanningHebdomadaire planning = new PlanningHebdomadaire(louagiste, debut, debut.plusDays(DELAI_CLOTURE_JOURS));
         if (LocalDate.now().isAfter(planning.getDateCloture())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Le planning de la semaine du " + debut + " est cloture (depuis le " + planning.getDateCloture() + ").");

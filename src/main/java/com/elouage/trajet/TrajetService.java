@@ -18,12 +18,10 @@ import java.util.List;
 public class TrajetService {
     private final TrajetRepository trajetRepository;
     private final ReservationRepository reservationRepository;
-    private final boolean verifierDates;
 
     public TrajetService(TrajetRepository trajetRepository, ReservationRepository reservationRepository) {
         this.trajetRepository = trajetRepository;
         this.reservationRepository = reservationRepository;
-        this.verifierDates = true;
     }
 
     // utilise par LigneService (US11)
@@ -81,10 +79,6 @@ public class TrajetService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trajet introuvable : " + trajetId));
 
         verifierLouagiste(trajet, louagisteId);
-        if (verifierDates && !jour.equals(LocalDate.now())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Le check-in n'est possible que le jour du trajet (" + jour + ").");
-        }
         if (trajet.isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Le check-in a deja ete effectue (rang " + trajet.getRang() + ").");

@@ -18,8 +18,7 @@ public class PlanningController {
     }
 
     // US10  POST http://localhost:8081/api/plannings
-    // {"louagisteId": 1, "dateDebutSemaine": "2026-10-19",
-    //  "lignesParJour": {"2026-10-19": 1, "2026-10-20": 2, "2026-10-21": 1}}
+    // { "louagisteId": 3, "dateDebutSemaine": "2026-10-19", "lignesParJour": { "2026-10-19": 1 } }
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PlanningResponse remplirPlan(@RequestBody PlanningRequest request) {

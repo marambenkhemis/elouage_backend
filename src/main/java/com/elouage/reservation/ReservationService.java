@@ -19,14 +19,12 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final TrajetRepository trajetRepository;
     private final UtilisateurService utilisateurService;
-    private final boolean verifierDates;
 
     public ReservationService(ReservationRepository reservationRepository, TrajetRepository trajetRepository,
                               UtilisateurService utilisateurService) {
         this.reservationRepository = reservationRepository;
         this.trajetRepository = trajetRepository;
         this.utilisateurService = utilisateurService;
-        this.verifierDates = true;
     }
 
     private Reservation getReservation(Long id) {
@@ -98,11 +96,6 @@ public class ReservationService {
     public ReservationResponse signalerPresence(Long reservationId, Long passagerId) {
         Reservation reservation = getReservation(reservationId);
         verifierPassager(reservation, passagerId);
-        LocalDate jour = reservation.getTrajet().getDate();
-        if (verifierDates && !jour.equals(LocalDate.now())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "La presence ne peut etre signalee que le jour du trajet (" + jour + ").");
-        }
         if (reservation.getStatut() != StatutReservation.CONFIRMEE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Seule une reservation confirmee peut etre marquee presente (statut : " + reservation.getStatut() + ").");
