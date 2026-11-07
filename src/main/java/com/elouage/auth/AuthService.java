@@ -1,15 +1,16 @@
 package com.elouage.auth;
 
+import com.elouage.document.Document;
+import com.elouage.document.DocumentService;
+import com.elouage.document.TypeDocument;
 import com.elouage.utilisateur.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Service
 public class AuthService {
@@ -23,6 +24,8 @@ public class AuthService {
     private PasswordEncoder encoder;
     @Autowired
     private JwtService jwtService;
+    @Autowired
+    private DocumentService documentService;
 
     //us01
     @Transactional
@@ -37,16 +40,32 @@ public class AuthService {
 
     // sprint 2: louagiste registration without documents (documents = US03, sprint 3); waits for the admin (US04)
     @Transactional
-    public Map<String, Object> inscrireLouagiste(Louagiste l) {
+    public Map<String, Object> inscrireLouagiste(Louagiste l, Map<TypeDocument, MultipartFile> fichiers) {
         verifierCommun(l);
         exiger(l.getMatricule(), "matricule");
         exiger(l.getModele(), "modele");
+        for (TypeDocument t : TypeDocument.values()) {            // fail fast, before any write
+            documentService.verifier(t, fichiers.get(t));
+        }
         l.setId(null);
         l.setEmail(l.getEmail().trim().toLowerCase());
         l.setMotDePasse(encoder.encode(l.getMotDePasse()));
         l.setStatut(StatutCompte.EN_ATTENTE);
         l.setLignesAutorisees(new ArrayList<>());   // only the admin gives lines
-        return resume(louagisteRepository.save(l));
+        Louagiste saved = louagisteRepository.save(l);            // we need the id for the folder
+
+        List<Document> ecrits = new ArrayList<>();
+        try {
+            for (TypeDocument t : TypeDocument.values()) {
+                ecrits.add(documentService.sauvegarder(saved, t, fichiers.get(t)));
+            }
+        } catch (RuntimeException e) {                            // the DB is rolled back, so remove the files already written
+            ecrits.forEach(documentService::supprimerFichier);
+            throw e;
+        }
+        Map<String, Object> res = resume(saved);
+        res.put("documents", ecrits);
+        return res;
     }
 
     // US02

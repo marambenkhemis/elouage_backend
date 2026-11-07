@@ -18,7 +18,7 @@ public class JwtService {
     private final long dureeMs;
 
     public JwtService(@Value("${elouage.jwt.secret}") String secret,
-                      @Value("$elouage.jwt.duree-minutes") long minutes){
+                      @Value("${elouage.jwt.duree-minutes}") long minutes){
         this.key= Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.dureeMs=minutes*60_000;
     }
