@@ -5,5 +5,5 @@ public enum TypeNotification {
     DEPART,
     DISPONIBILITE,
     TRAJET,
-    //RAPPEL_GRACE
+    RAPPEL_GRACE
 }

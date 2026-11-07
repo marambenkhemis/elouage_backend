@@ -1,5 +1,6 @@
 package com.elouage.notification;
 
+import com.elouage.auth.AuthUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,19 +15,19 @@ public class NotificationController {
 
     @GetMapping
     public List<Notification> lister(@RequestParam Long utilisateurId){
-        //AuthUtil.varifier(utilisateurId);
+        AuthUtil.verifier(utilisateurId);
         return notificationService.mesNotifications(utilisateurId);
     }
 
     @GetMapping("/non-lues")
     public Map<String,Long> nonlues(@RequestParam Long utilisateurId){
-        //AuthUtil.varifier(utilisateurId);
+        AuthUtil.verifier(utilisateurId);
         return Map.of("nonLues", notificationService.nbNonLues(utilisateurId));
     }
 
     @PutMapping("/{id}/lue")
     public Notification marquerLue(@PathVariable Long id, @RequestParam Long utilisateurId) {
-        //AuthUtil.verifier(utilisateurId);
+        AuthUtil.verifier(utilisateurId);
         return notificationService.marquerLue(id, utilisateurId);
     }
 }
