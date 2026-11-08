@@ -32,7 +32,7 @@ public class PlanningService {
     private final LigneRepository ligneRepository;
     private final UtilisateurService utilisateurService;
     private final TrajetService trajetService;
-    private static final int DELAI_CLOTURE_JOURS = 0;
+    private static final int DELAI_CLOTURE_JOURS = 6;
 
     public PlanningService(PlanningRepository planningRepository, TrajetRepository trajetRepository,
                            ReservationRepository reservationRepository, LigneRepository ligneRepository,
