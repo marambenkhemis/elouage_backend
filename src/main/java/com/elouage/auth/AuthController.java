@@ -4,7 +4,9 @@ import com.elouage.document.TypeDocument;
 import com.elouage.utilisateur.Louagiste;
 import com.elouage.utilisateur.Passager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -38,7 +40,12 @@ public class AuthController {
         return authService.inscrireLouagiste(l, f);
     }
     @PostMapping("/login")
-    public Map<String, Object> login(@RequestBody Map<String, String> body) {
-        return authService.login(body);
-    }
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
+        try {
+            return ResponseEntity.ok(authService.login(body));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", e.getMessage()));
+        }
+    }}
 }
