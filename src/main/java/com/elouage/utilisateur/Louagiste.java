@@ -21,10 +21,17 @@ public class Louagiste extends Utilisateur{
     public Louagiste() {
     }
 
+
     public Louagiste(String nom, String prenom, String email, String telephone, String motDePasse, String matricule, String modele) {
         super(nom, prenom, email, telephone, motDePasse);
         this.matricule = matricule;
         this.modele = modele;
+        setStatut(StatutCompte.EN_ATTENTE);  // waits for the admin (US04)
+    }
+
+    @Override
+    public String getRole() {
+        return "LOUAGISTE";
     }
 
     public List<String> getPhotosVehicule() {

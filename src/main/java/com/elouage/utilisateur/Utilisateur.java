@@ -1,5 +1,7 @@
 package com.elouage.utilisateur;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -11,9 +13,14 @@ public abstract class Utilisateur {
     private Long id;
     private String nom;
     private String prenom;
+    @Column(nullable = false,unique = true)
     private String email;
     private String telephone;
+    // never sent back to the front
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String motDePasse;
+    @Enumerated(EnumType.STRING)
+    private StatutCompte statut;
 
     public Utilisateur() {
     }
@@ -25,6 +32,9 @@ public abstract class Utilisateur {
         this.telephone = telephone;
         this.motDePasse = motDePasse;
     }
+
+    @JsonIgnore
+    public abstract String getRole();
 
     public Long getId() {
         return id;
@@ -72,5 +82,13 @@ public abstract class Utilisateur {
 
     public void setMotDePasse(String motDePasse) {
         this.motDePasse = motDePasse;
+    }
+
+    public StatutCompte getStatut() {
+        return statut;
+    }
+
+    public void setStatut(StatutCompte statut) {
+        this.statut = statut;
     }
 }

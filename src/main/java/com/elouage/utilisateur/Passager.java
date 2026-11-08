@@ -9,5 +9,12 @@ public class Passager extends Utilisateur{
 
     public Passager(String nom, String prenom, String email, String telephone, String motDePasse) {
         super(nom, prenom, email, telephone, motDePasse);
+        setStatut(StatutCompte.ACTIF);
     }
+
+    @Override
+    public String getRole() {
+        return "PASSAGER";
+    }
+
 }
