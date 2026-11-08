@@ -34,11 +34,17 @@ public class AuthController {
 
     @PostMapping(value = "/inscription/louagiste", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> inscrireLouagiste(
-            @RequestParam String nom, @RequestParam String prenom, @RequestParam String email,
-            @RequestParam String telephone, @RequestParam String motDePasse,
-            @RequestParam String matricule, @RequestParam String modele,
-            @RequestParam MultipartFile cin, @RequestParam MultipartFile permis,
-            @RequestParam MultipartFile carteGrise, @RequestParam MultipartFile autorisationTransport) {
+            @RequestParam(required = false) String nom,
+            @RequestParam(required = false) String prenom,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String telephone,
+            @RequestParam(required = false) String motDePasse,
+            @RequestParam(required = false) String matricule,
+            @RequestParam(required = false) String modele,
+            @RequestParam(required = false) MultipartFile cin,
+            @RequestParam(required = false) MultipartFile permis,
+            @RequestParam(required = false) MultipartFile carteGrise,
+            @RequestParam(required = false) MultipartFile autorisationTransport) {
         try {
             Louagiste l = new Louagiste(nom, prenom, email, telephone, motDePasse, matricule, modele);
             Map<TypeDocument, MultipartFile> f = new EnumMap<>(TypeDocument.class);
