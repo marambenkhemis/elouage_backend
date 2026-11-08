@@ -6,4 +6,4 @@ public record TrajetResultatResponse(
         Long trajetId, LocalDate date,
         String villeDepart, String stationDepart,
         String villeDestination, String stationArrivee,
-        double prix, String louagisteNom, String matricule, int placesLibres) { }
+        double prix, String louagisteNom, String matricule, int placesLibres,boolean retour) { }

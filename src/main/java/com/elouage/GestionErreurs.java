@@ -14,6 +14,7 @@ public class GestionErreurs {
 
     // 404 de LouagisteLigneService / changerLigne : on garde leur statut
     @ExceptionHandler(ResponseStatusException.class)
+
     public ResponseEntity<Map<String, String>> statut(ResponseStatusException e) {
         return ResponseEntity.status(e.getStatusCode()).body(Map.of("message", String.valueOf(e.getReason())));
     }
