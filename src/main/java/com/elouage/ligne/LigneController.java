@@ -33,8 +33,7 @@ public class LigneController {
     public List<Ligne> lister() {
         return ligneService.getLignes();
     }
-    //http://localhost:8081/api/lignes/recherche?depart=ARIANA&destination=SOUSSE&date=2026-10-20
-    @GetMapping("/recherche")
+    //GET http://localhost:8081/api/lignes/recherche?depart=TUNIS&destination=SOUSSE&date=2026-11-09    @GetMapping("/recherche")
     public List<TrajetResultatResponse> rechercher(
             @RequestParam String depart,
             @RequestParam String destination,

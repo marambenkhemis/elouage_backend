@@ -56,7 +56,7 @@ public class LigneService {
                         ligne.getVilleDestination(), ligne.getStationArrivee().getNom(),
                         ligne.getPrix(),
                         t.getLouagiste().getNom(), t.getLouagiste().getMatricule(),
-                        trajetService.getPlacesLibres(t.getId()).size(),t.isRetour()));
+                        trajetService.getPlacesLibres(t.getId()).size(),t.isRetour(),t.getHeureArrivee()));
             }
         }
         return resultats;
