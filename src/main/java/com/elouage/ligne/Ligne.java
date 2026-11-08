@@ -11,12 +11,15 @@ public class Ligne {
     private String villeDestination;
     private String delegationDestination;
     private double prix;
+    private Integer dureeTrajet;   // minutes
+
 
     @ManyToOne
     private Station stationDepart;
 
     @ManyToOne
     private Station stationArrivee;
+
 
     public Ligne() {
     }
@@ -62,6 +65,8 @@ public class Ligne {
     public void setDelegationDestination(String delegationDestination) {
         this.delegationDestination = delegationDestination;
     }
+    public Integer getDureeTrajet() { return dureeTrajet; }
+    public void setDureeTrajet(Integer dureeTrajet) { this.dureeTrajet = dureeTrajet; }
 
     public double getPrix() {
         return prix;

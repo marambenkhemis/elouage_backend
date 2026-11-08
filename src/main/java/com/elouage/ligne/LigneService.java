@@ -24,6 +24,10 @@ public class LigneService {
 
     //US09
     public Ligne ajouterLigne(LigneRequest request) {
+        // NEW : la duree est obligatoire (le retour et la liste d'attente en dependent)
+        if (request.dureeTrajet() == null || request.dureeTrajet() <= 0) {
+            throw new RuntimeException("La duree du trajet (en minutes) est obligatoire et doit etre superieure a 0.");
+        }
         Station depart = stationRepository.findById(request.stationDepartId())
                 .orElseThrow(() -> new RuntimeException("Station de départ introuvable"));
         Station arrivee = stationRepository.findById(request.stationArriveeId())
@@ -31,6 +35,7 @@ public class LigneService {
 
         Ligne ligne = new Ligne(depart, arrivee, request.minimumLouagistes(),
                 request.villeDestination(), request.delegationDestination(), request.prix());
+        ligne.setDureeTrajet(request.dureeTrajet());
         return ligneRepository.save(ligne);
     }
 
@@ -67,6 +72,10 @@ public class LigneService {
         return new EtatPlacesResponse(trajetId, libres.size(), places);
     }
 
-
+    // US19: trouver l'id de la ligne (ex. SOUSSE -> TUNIS) meme s'il n'existe pas encore de trajet
+    public List<Ligne> rechercherLignes(String villeDepart, String villeDestination) {
+        return ligneRepository.findByStationDepartVilleIgnoreCaseAndVilleDestinationIgnoreCase(
+                villeDepart, villeDestination);
+    }
 
 }

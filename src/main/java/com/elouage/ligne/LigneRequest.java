@@ -6,6 +6,7 @@ public record LigneRequest(
         String villeDestination,
         String delegationDestination,
         double prix,
-        int minimumLouagistes
+        int minimumLouagistes,
+        Integer dureeTrajet
 ) {
 }

@@ -46,4 +46,11 @@ public class LigneController {
     public EtatPlacesResponse etatPlaces(@PathVariable Long trajetId) {
         return ligneService.getEtatPlaces(trajetId);
     }
+
+    // US19  GET http://localhost:8081/api/lignes/trouver?depart=SOUSSE&destination=TUNIS
+    @GetMapping("/trouver")
+    public List<Ligne> trouver(@RequestParam("depart") String depart,
+                               @RequestParam("destination") String destination) {
+        return ligneService.rechercherLignes(depart, destination);
+    }
 }

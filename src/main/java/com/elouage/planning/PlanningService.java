@@ -7,9 +7,9 @@ import com.elouage.reservation.StatutReservation;
 import com.elouage.trajet.Trajet;
 import com.elouage.trajet.TrajetRepository;
 import com.elouage.trajet.TrajetResponse;
+import com.elouage.trajet.TrajetService;
 import com.elouage.utilisateur.Louagiste;
 import com.elouage.utilisateur.UtilisateurService;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,18 +31,22 @@ public class PlanningService {
     private final ReservationRepository reservationRepository;
     private final LigneRepository ligneRepository;
     private final UtilisateurService utilisateurService;
+    private final TrajetService trajetService;
     private static final int DELAI_CLOTURE_JOURS = 0;
 
     public PlanningService(PlanningRepository planningRepository, TrajetRepository trajetRepository,
                            ReservationRepository reservationRepository, LigneRepository ligneRepository,
-                           UtilisateurService utilisateurService) {
+                           UtilisateurService utilisateurService,TrajetService trajetService) {
         this.planningRepository = planningRepository;
         this.trajetRepository = trajetRepository;
         this.reservationRepository = reservationRepository;
         this.ligneRepository = ligneRepository;
         this.utilisateurService = utilisateurService;
-    }
+        this.trajetService = trajetService;
 
+    }
+    // le choix d'un jour : la ligne, aller simple ou aller-retour, et l'heure d'arrivee a la station
+    public record ChoixJour(Ligne ligne, boolean allerRetour, LocalTime heureArrivee) { }
     // US10 : remplir le planning de la semaine. La presence est confirmee tout de suite, sans validation de l'admin.
     @Transactional
     public PlanningResponse remplirPlan(PlanningRequest request) {
@@ -62,26 +67,38 @@ public class PlanningService {
                     + " est cloture (depuis le " + planning.getDateCloture() + ").");
         }
 
-        Map<LocalDate, Ligne> choix = new TreeMap<>();
-        for (Map.Entry<LocalDate, Long> e : request.lignesParJour().entrySet()) {
-            if (e.getValue() == null) {
+        Map<LocalDate, ChoixJour> choix = new TreeMap<>();
+        for (Map.Entry<LocalDate,  PlanningRequest.JourRequest> e : request.lignesParJour().entrySet()) {
+            PlanningRequest.JourRequest jour = e.getValue();
+            if (jour == null || jour.ligneId() == null) {
                 throw new RuntimeException("Aucune ligne choisie pour le " + e.getKey() + ".");
             }
-            Ligne ligne = ligneRepository.findById(e.getValue())
-                    .orElseThrow(() -> new RuntimeException("Ligne introuvable : " + e.getValue()));
-            choix.put(e.getKey(), ligne);
+            // l'heure d'arrivee est obligatoire (US10)
+            if (jour.heureArrivee() == null) {
+                throw new RuntimeException("Indiquez votre heure d'arrivee a la station pour le " + e.getKey() + ".");
+            }
+            Ligne ligne = ligneRepository.findById(jour.ligneId())
+                    .orElseThrow(() -> new RuntimeException("Ligne introuvable : " + jour.ligneId()));
+            choix.put(e.getKey(), new ChoixJour(ligne, jour.allerRetour(), jour.heureArrivee()));
         }
 
         planning.getTrajets().addAll(valider(planning, choix));
-        return PlanningResponse.from(planningRepository.save(planning));
+        //les passagers qui attendaient ces lignes ce jour-la recoivent une place automatiquement
+        PlanningHebdomadaire sauve = planningRepository.save(planning);
+        for (Trajet t : new ArrayList<>(sauve.getTrajets())) {
+            trajetService.remplirDepuisAttente(t);
+        }
+        return PlanningResponse.from(sauve);
     }
 
-    // valider(choix) du diagramme : controle les regles et cree un Trajet par jour choisi
-    public List<Trajet> valider(PlanningHebdomadaire planning, Map<LocalDate, Ligne> choix) {
+    // valider(choix) du diagramme : controle les regles et cree les Trajets de chaque jour choisi
+    // un trajet aller, et si "aller-retour" est coche, un 2e trajet sur la ligne inverse (retour = true)
+    public List<Trajet> valider(PlanningHebdomadaire planning, Map<LocalDate, ChoixJour> choix) {
         List<Trajet> trajets = new ArrayList<>();
-        for (Map.Entry<LocalDate, Ligne> e : choix.entrySet()) {
+        for (Map.Entry<LocalDate, ChoixJour> e : choix.entrySet()) {
             LocalDate jour = e.getKey();
-            Ligne ligne = e.getValue();
+            ChoixJour c = e.getValue();
+            Ligne ligne = c.ligne();
             if (jour.isBefore(planning.getDateDebutSemaine()) || jour.isAfter(planning.getDateDebutSemaine().plusDays(6))) {
                 throw new RuntimeException("Le jour " + jour + " n'appartient pas a la semaine du "
                         + planning.getDateDebutSemaine() + ".");
@@ -92,7 +109,31 @@ public class PlanningService {
             if (!ligneAutorisee(planning.getLouagiste(), ligne)) {
                 throw new RuntimeException("Ligne " + ligne.getId() + " non autorisee pour ce louagiste (jour " + jour + ").");
             }
-            trajets.add(new Trajet(planning, planning.getLouagiste(), ligne, jour));
+            //Trajet aller
+            Trajet aller = new Trajet(planning, planning.getLouagiste(), ligne, jour);
+            aller.setRetour(false);
+            aller.setHeureArrivee(c.heureArrivee());
+            trajets.add(aller);
+
+            // NEW : trajet retour sur la ligne inverse
+            if (c.allerRetour()) {
+                Trajet retour = new Trajet(planning, planning.getLouagiste(), ligneInverse(ligne), jour);
+                retour.setRetour(true);
+                retour.setTrajetPrecedent(aller);
+                if (ligne.getDureeTrajet() == null) {
+                    throw new RuntimeException("La ligne " + ligne.getId()
+                            + " n'a pas de duree de trajet : impossible de planifier le retour.");
+                }
+                // heure estimee du retour = heure d'arrivee + duree du trajet de la ligne
+                if (ligne.getDureeTrajet() != null) {
+                    LocalTime heureRetour = c.heureArrivee().plusMinutes(ligne.getDureeTrajet());
+                    if (heureRetour.isBefore(c.heureArrivee())) {
+                        throw new RuntimeException("Le retour du " + jour + " depasserait minuit.");
+                    }
+                    retour.setHeureArrivee(heureRetour);
+                }
+                trajets.add(retour);
+            }
         }
         return trajets;
     }
@@ -106,7 +147,7 @@ public class PlanningService {
         return PlanningResponse.from(planning);
     }
 
-    // getTrajet(date) du diagramme : le trajet d'un jour du planning
+    // getTrajet(date) du diagramme : le trajet d'un jour du planning (l'aller si le jour est aller-retour)
     @Transactional(readOnly = true)
     public TrajetResponse getTrajet(Long planningId, LocalDate jour) {
         PlanningHebdomadaire planning = planningRepository.findById(planningId)
@@ -115,11 +156,13 @@ public class PlanningService {
                 .orElseThrow(() -> new RuntimeException(
                         "Aucun trajet le " + jour + " dans ce planning."));
         int placesLibres = Trajet.NB_PLACES - reservationRepository
-                .findNumerosOccupes(trajet.getId(), StatutReservation.ANNULEE).size();
+                .findNumerosOccupes(trajet.getId(), StatutReservation.INACTIFS).size();
         return TrajetResponse.from(trajet, placesLibres);
     }
 
     // US22 / US23 / US24 : changer la ligne d'un jour, avant la cloture du planning et avant le check-in
+    // Si le jour est aller-retour, le trajet retour suit automatiquement (ligne inverse de la nouvelle ligne).
+
     @Transactional
     public TrajetResponse changerLigne(Long trajetId, ChangerLigneRequest request) {
         if (request.louagisteId() == null || request.ligneId() == null) {
@@ -130,6 +173,9 @@ public class PlanningService {
         if (!trajet.getLouagiste().getId().equals(request.louagisteId())) {
             throw new RuntimeException("Ce trajet n'appartient pas a ce louagiste.");
         }
+        if (trajet.isRetour() || trajet.getTrajetPrecedent() != null) {
+            throw new RuntimeException("Seul le trajet aller du planning peut changer de ligne.");
+        }
         if (LocalDate.now().isAfter(trajet.getPlanning().getDateCloture())) {
             throw new RuntimeException(
                     "Le planning est cloture : le changement de ligne n'est plus possible.");
@@ -137,7 +183,7 @@ public class PlanningService {
         if (trajet.isPresent()) {
             throw new RuntimeException("Impossible de changer de ligne apres le check-in.");
         }
-        if (reservationRepository.existsByTrajetIdAndStatutNot(trajetId, StatutReservation.ANNULEE)) {
+        if (reservationRepository.existsByTrajetIdAndStatutNotIn(trajetId, StatutReservation.INACTIFS)) {
             throw new RuntimeException(
                     "Impossible de changer de ligne : des passagers ont deja reserve ce trajet.");
         }
@@ -150,12 +196,43 @@ public class PlanningService {
         if (!ligneAutorisee(trajet.getLouagiste(), ligne)) {
             throw new RuntimeException("Le louagiste n'est pas autorise sur cette ligne.");
         }
+        // jour aller-retour : le retour doit suivre, s'il est encore intact
+        Trajet retourLie = null;
+        var suivant = trajetRepository.findFirstByTrajetPrecedentId(trajetId);
+        if (suivant.isPresent()) {
+            Trajet retour = trajetRepository.findByIdForUpdate(suivant.get().getId())
+                    .orElseThrow(() -> new RuntimeException("Trajet retour introuvable."));
+            if (retour.isPresent() || trajetRepository.existsByTrajetPrecedentId(retour.getId())
+                    || reservationRepository.existsByTrajetIdAndStatutNotIn(retour.getId(), StatutReservation.INACTIFS)) {
+                throw new RuntimeException(
+                        "Impossible de changer de ligne : le trajet retour est deja utilise (check-in ou reservations).");
+            }
+            retour.setLigne(ligneInverse(ligne));
+            retourLie = retour;
+        }
         trajet.setLigne(ligne);
-        return TrajetResponse.from(trajet, Trajet.NB_PLACES);
+        // les passagers qui attendaient la nouvelle ligne ce jour-la recoivent une place
+        trajetService.remplirDepuisAttente(trajet);
+        if (retourLie != null) {
+            trajetService.remplirDepuisAttente(retourLie);
+        }
+        return TrajetResponse.from(trajet, trajetService.getPlacesLibres(trajet.getId()).size());
     }
 
     // le louagiste ne peut choisir que parmi ses lignes autorisees
     private boolean ligneAutorisee(Louagiste louagiste, Ligne ligne) {
         return louagiste.getLignesAutorisees().stream().anyMatch(l -> l.getId().equals(ligne.getId()));
+    }
+
+    // la ligne inverse (retour) : memes stations, sens contraire. Elle n'a pas besoin d'etre dans les lignes
+    // autorisees : le retour est la suite logique de l'aller.
+    private Ligne ligneInverse(Ligne ligne) {
+        if (ligne.getStationDepart() == null || ligne.getStationArrivee() == null) {
+            throw new RuntimeException("La ligne " + ligne.getId() + " n'a pas de stations definies.");
+        }
+        return ligneRepository.findFirstByStationDepartIdAndStationArriveeIdOrderByIdAsc(
+                        ligne.getStationArrivee().getId(), ligne.getStationDepart().getId())
+                .orElseThrow(() -> new RuntimeException(
+                        "Aucune ligne inverse pour la ligne " + ligne.getId() + " : ajoutez-la d'abord."));
     }
 }

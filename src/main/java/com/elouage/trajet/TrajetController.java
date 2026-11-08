@@ -2,6 +2,7 @@ package com.elouage.trajet;
 
 import com.elouage.reservation.ReservationResponse;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -23,23 +24,46 @@ public class TrajetController {
         return trajetService.getTrajetResponse(id);
     }
 
-    // US15 + US16  POST http://localhost:8081/api/trajets/1/check-in?louagisteId=1
+    // US15  POST http://localhost:8081/api/trajets/1/check-in?louagisteId=1
     @PostMapping("/{id}/check-in")
-    public CheckInResponse faireCheckIn(@PathVariable Long id, @RequestParam Long louagisteId) {
+    public TrajetResponse faireCheckIn(@PathVariable Long id, @RequestParam Long louagisteId) {
         return trajetService.faireCheckIn(id, louagisteId);
     }
-
-    // US16  GET http://localhost:8081/api/trajets/file?ligneId=1&date=2026-10-20
-    @GetMapping("/file")
-    public List<FileDepartResponse> getFile(
-            @RequestParam Long ligneId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return trajetService.getFile(ligneId, date);
-    }
-
     // US18 (liste a cocher)  GET http://localhost:8081/api/trajets/1/presents?louagisteId=1
     @GetMapping("/{id}/presents")
     public List<ReservationResponse> getReservationsPresentes(@PathVariable Long id, @RequestParam Long louagisteId) {
         return trajetService.getReservationsPresentes(id, louagisteId);
     }
+
+    //(passagers actifs du trajet): GET http://localhost:8081/api/trajets/1/reservations?louagisteId=1
+    @GetMapping("/{id}/reservations")
+    public List<ReservationResponse> getReservations(@PathVariable Long id, @RequestParam Long louagisteId) {
+        return trajetService.getReservationsActives(id, louagisteId);
+    }
+
+    // US27:  POST http://localhost:8081/api/trajets/1/retour?louagisteId=1
+    @PostMapping("/{id}/retour")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TrajetResponse declarerRetour(@PathVariable Long id, @RequestParam Long louagisteId) {
+        return trajetService.declarerRetour(id, louagisteId);
+    }
+
+    // US18:  GET http://localhost:8081/api/trajets/1/non-presents?louagisteId=1
+    @GetMapping("/{id}/non-presents")
+    public List<ReservationResponse> getNonPresents(@PathVariable Long id, @RequestParam Long louagisteId) {
+        return trajetService.getNonPresents(id, louagisteId);
+    }
+
+    // US18: POST http://localhost:8081/api/trajets/1/absents   {"louagisteId": 1, "reservationIds": [5, 6]}
+    @PostMapping("/{id}/absents")
+    public LiberationResponse marquerAbsents(@PathVariable Long id, @RequestBody MarquerAbsentsRequest request) {
+        return trajetService.marquerAbsents(id, request);
+    }
+
+    // US20:  GET http://localhost:8081/api/trajets/1/attente?louagisteId=1
+    @GetMapping("/{id}/attente")
+    public List<ReservationResponse> getAttente(@PathVariable Long id, @RequestParam Long louagisteId) {
+        return trajetService.getAttente(id, louagisteId);
+    }
+
 }

@@ -27,7 +27,7 @@ public class PlanningHebdomadaire {
     private Louagiste louagiste;
 
     @OneToMany(mappedBy = "planning", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("date ASC")
+    @OrderBy("date ASC,id ASC") //2 trajets peuvent avoir m date
     private List<Trajet> trajets = new ArrayList<>();
 
     public PlanningHebdomadaire() { }
@@ -42,6 +42,9 @@ public class PlanningHebdomadaire {
     public Map<LocalDate, Ligne> getLignesParJour() {
         Map<LocalDate, Ligne> lignesParJour = new TreeMap<>();
         for (Trajet t : trajets) {
+            if (t.isRetour()) {
+                continue;   // seul l'aller est un choix de ligne du planning
+            }
             lignesParJour.put(t.getDate(), t.getLigne());
         }
         return lignesParJour;

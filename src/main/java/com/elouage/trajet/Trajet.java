@@ -7,10 +7,10 @@ import jakarta.persistence.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(name = "uk_trajet_louagiste_jour",
-        columnNames = {"louagiste_id", "date_trajet"}))
+
 public class Trajet {
     public static final int NB_PLACES = 8;
 
@@ -24,10 +24,19 @@ public class Trajet {
     // true apres le check-in du louagiste dans la station
     private boolean present;
 
-    // position dans la file de depart (1 = premier). 0 tant que le check-in n'est pas fait.
-    private int rang;
-
     private LocalDateTime heureCheckIn;
+
+    // US10/US27: true = trajet retour (cree sur la ligne inverse du trajet precedent)
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean retour;
+
+    // US10 : heure d'arrivee du louagiste a la station de depart
+    private LocalTime heureArrivee;
+
+    // US27: trajet qui precede celui-ci (aller -> retour, retour -> nouvel aller). null pour un trajet du planning.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trajet_precedent_id")
+    private Trajet trajetPrecedent;
 
     @ManyToOne
     @JoinColumn(name = "ligne_id")
@@ -74,13 +83,6 @@ public class Trajet {
         this.present = present;
     }
 
-    public int getRang() {
-        return rang;
-    }
-
-    public void setRang(int rang) {
-        this.rang = rang;
-    }
 
     public LocalDateTime getHeureCheckIn() {
         return heureCheckIn;
@@ -113,4 +115,12 @@ public class Trajet {
     public void setPlanning(PlanningHebdomadaire planning) {
         this.planning = planning;
     }
+    public boolean isRetour() { return retour; }
+    public void setRetour(boolean retour) { this.retour = retour; }
+
+    public LocalTime getHeureArrivee() { return heureArrivee; }
+    public void setHeureArrivee(LocalTime heureArrivee) { this.heureArrivee = heureArrivee; }
+
+    public Trajet getTrajetPrecedent() { return trajetPrecedent; }
+    public void setTrajetPrecedent(Trajet trajetPrecedent) { this.trajetPrecedent = trajetPrecedent; }
 }

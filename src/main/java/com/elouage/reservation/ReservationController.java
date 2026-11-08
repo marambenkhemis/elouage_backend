@@ -21,6 +21,13 @@ public class ReservationController {
     public ReservationResponse reserver(@RequestBody ReservationRequest request) {
         return reservationService.reserver(request);
     }
+    // US19  POST http://localhost:8081/api/reservations/attente
+    // {"passagerId": 3, "ligneId": 1, "date": "2026-11-10", "plages": ["MATIN", "SOIR"]}
+    @PostMapping("/attente")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ReservationResponse rejoindreAttente(@RequestBody AttenteRequest request) {
+        return reservationService.rejoindreAttente(request);
+    }
 
     // Mes reservations   GET http://localhost:8081/api/reservations?passagerId=3
     @GetMapping

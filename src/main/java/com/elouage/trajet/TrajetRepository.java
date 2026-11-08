@@ -13,22 +13,19 @@ import java.util.Optional;
 public interface TrajetRepository extends JpaRepository<Trajet, Long> {
     List<Trajet> findByLigneIdAndDate(Long ligneId, LocalDate date);
 
-    // US16 : la file de depart = louagistes presents, dans l'ordre d'arrivee
-    List<Trajet> findByLigneIdAndDateAndPresentTrueOrderByRangAsc(Long ligneId, LocalDate date);
-
-    // verrou en ecriture sur un trajet (reservation d'une place)
+    // verrou en ecriture sur un trajet (reservation d'une place,promotion,check in)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from Trajet t where t.id = :id")
     Optional<Trajet> findByIdForUpdate(@Param("id") Long id);
 
-    // verrou sur tous les trajets d'une ligne pour un jour : deux check-in simultanes n'auront jamais le meme rang
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select t from Trajet t where t.ligne.id = :ligneId and t.date = :date order by t.id")
-    List<Trajet> findAllByLigneAndDateForUpdate(@Param("ligneId") Long ligneId, @Param("date") LocalDate date);
+    // US21 :nombre de louagistes inscrits sur une ligne un jour donne (trajets aller seulement)
+    @Query("select count(distinct t.louagiste.id) from Trajet t "
+            + "where t.ligne.id = :ligneId and t.date = :date and t.retour = false")
+    long countLouagistesInscrits(@Param("ligneId") Long ligneId, @Param("date") LocalDate date);
 
-    @Query("select t.ligne.id from Trajet t where t.id = :id")
-    Optional<Long> findLigneIdById(@Param("id") Long id);
+    //US27: le trajet suivant existe deja?
+    boolean existsByTrajetPrecedentId(Long trajetPrecedentId);
 
-    @Query("select t.date from Trajet t where t.id = :id")
-    Optional<LocalDate> findDateById(@Param("id") Long id);
+    //US10: le retour qui suit un aller
+    Optional<Trajet> findFirstByTrajetPrecedentId(Long trajetPrecedentId);
 }

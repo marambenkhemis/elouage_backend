@@ -3,13 +3,15 @@ package com.elouage.planning;
 import com.elouage.trajet.Trajet;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public record PlanningResponse(
         Long id, Long louagisteId, LocalDate dateDebutSemaine, LocalDate dateCloture, List<JourPlanning> jours) {
 
-    // un jour du planning = un trajet sur une ligne
-    public record JourPlanning(Long trajetId, LocalDate date, Long ligneId, String villeDestination, boolean present) { }
+    // un jour du planning = un trajet sur une ligne (un jour aller-retour = 2 trajets, le 2e avec retour = true)
+    public record JourPlanning(Long trajetId, LocalDate date, Long ligneId, String villeDepart,
+                               String villeDestination, boolean present, boolean retour, LocalTime heureArrivee) { }
 
     public static PlanningResponse from(PlanningHebdomadaire p) {
         List<JourPlanning> jours = p.getTrajets().stream()
@@ -20,7 +22,8 @@ public record PlanningResponse(
     }
 
     private static JourPlanning jour(Trajet t) {
-        return new JourPlanning(t.getId(), t.getDate(), t.getLigne().getId(),
-                t.getLigne().getVilleDestination(), t.isPresent());
+        String villeDepart = t.getLigne().getStationDepart() == null ? null : t.getLigne().getStationDepart().getVille();
+        return new JourPlanning(t.getId(), t.getDate(), t.getLigne().getId(), villeDepart,
+                t.getLigne().getVilleDestination(), t.isPresent(), t.isRetour(), t.getHeureArrivee());
     }
 }
