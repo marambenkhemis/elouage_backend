@@ -49,5 +49,6 @@ public class Notification {
     }
 
     public void setLu(boolean lu) { this.lu = lu; }
+    public boolean isLu() { return lu; }
     public Utilisateur getDestinataire() { return destinataire; }
 }

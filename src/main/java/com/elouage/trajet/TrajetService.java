@@ -2,6 +2,8 @@ package com.elouage.trajet;
 
 import com.elouage.ligne.Ligne;
 import com.elouage.ligne.LigneRepository;
+import com.elouage.notification.NotificationService;
+import com.elouage.notification.TypeNotification;
 import com.elouage.reservation.Reservation;
 import com.elouage.reservation.ReservationRepository;
 import com.elouage.reservation.ReservationResponse;
@@ -22,11 +24,13 @@ public class TrajetService {
     private final TrajetRepository trajetRepository;
     private final ReservationRepository reservationRepository;
     private final LigneRepository ligneRepository;
+    private final NotificationService notificationService;
 
-    public TrajetService(TrajetRepository trajetRepository, ReservationRepository reservationRepository,LigneRepository ligneRepository) {
+    public TrajetService(TrajetRepository trajetRepository, ReservationRepository reservationRepository,LigneRepository ligneRepository, NotificationService notificationService) {
         this.trajetRepository = trajetRepository;
         this.reservationRepository = reservationRepository;
         this.ligneRepository = ligneRepository;
+        this.notificationService = notificationService;
 
     }
 
@@ -172,6 +176,8 @@ public class TrajetService {
         List<Integer> places = new ArrayList<>();
         for (Reservation r : aMarquer) {
             r.libererPlace();                       // statut ABSENTE
+            notificationService.envoyer(r.getPassager(), TypeNotification.RESERVATION,
+                    "Vous avez été marqué absent : votre place a été libérée.");
             places.add(r.getNumeroPlace());
         }
         List<ReservationResponse> remplacants = new ArrayList<>();
@@ -211,6 +217,12 @@ public class TrajetService {
         r.setTrajet(trajet);
         r.setNumeroPlace(numeroPlace);
         r.setStatut(StatutReservation.CONFIRMEE);
+        String quand = trajet.getDate() + (trajet.getHeureArrivee() != null ? " à " + trajet.getHeureArrivee() : "");
+        notificationService.envoyer(r.getPassager(), TypeNotification.DISPONIBILITE,
+                "Une place s'est libérée : votre réservation est confirmée (place n°" + numeroPlace
+                        + ") sur la ligne vers " + trajet.getLigne().getVilleDestination() + " le " + quand + ".");
+        notificationService.envoyer(trajet.getLouagiste(), TypeNotification.TRAJET,
+                "Un passager en attente a reçu la place n°" + numeroPlace + " de votre trajet du " + quand + ".");
         return Optional.of(r);
     }
 
